@@ -3,36 +3,26 @@ import { WebSocketServer } from 'ws'
 const port = process.env.PORT || 1234
 const wss = new WebSocketServer({ port })
 
-console.log(`🚀 Servidor WebSocket corriendo en puerto ${port}`)
+// Almacenar clientes
+const clients = new Set()
 
 wss.on('connection', (ws) => {
-  console.log('✅ Cliente conectado')
-  
-  // Enviar mensaje de bienvenida (opcional)
-  ws.send(JSON.stringify({ type: 'welcome', message: 'Conectado al servidor' }))
+  clients.add(ws)
+  console.log(`✅ Cliente conectado. Total: ${clients.size}`)
   
   ws.on('message', (data) => {
-    console.log('📨 Mensaje recibido, reenviando a otros clientes...')
-    
-    // Reenviar el mensaje a todos los demás clientes
-    wss.clients.forEach((client) => {
-      if (client !== ws && client.readyState === WebSocket.OPEN) {
+    // Enviar a todos los demás clientes
+    clients.forEach((client) => {
+      if (client !== ws && client.readyState === 1) {
         client.send(data)
-        console.log('✅ Mensaje reenviado')
       }
     })
   })
   
   ws.on('close', () => {
-    console.log('❌ Cliente desconectado')
-  })
-  
-  ws.on('error', (error) => {
-    console.error('Error en WebSocket:', error.message)
+    clients.delete(ws)
+    console.log(`❌ Cliente desconectado. Total: ${clients.size}`)
   })
 })
 
-// Manejar errores del servidor
-wss.on('error', (error) => {
-  console.error('Error del servidor:', error.message)
-})
+console.log(`🚀 Servidor corriendo en 0.0.0.0:${port}`)

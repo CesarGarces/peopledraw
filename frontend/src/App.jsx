@@ -5,7 +5,7 @@ import { WebsocketProvider } from 'y-websocket'
 import { HexColorPicker } from 'react-colorful'
 import './index.css'
 
-const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:1234'
+const WS_URL = import.meta.env.VITE_WS_URL || 'wss://backend-winter-grass-6714.fly.dev'
 const ROOM_NAME = 'peopledraw-room'
 
 function App() {

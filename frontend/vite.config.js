@@ -7,7 +7,7 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/ws': {
-        target: 'ws://localhost:1234',
+        target: 'wss://backend-winter-grass-6714.fly.dev',
         ws: true
       }
     }
