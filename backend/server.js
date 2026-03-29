@@ -1,45 +1,38 @@
 import { WebSocketServer } from 'ws'
-import * as Y from 'yjs'
-import { Awareness } from 'y-protocols/awareness.js'
 
 const port = process.env.PORT || 1234
 const wss = new WebSocketServer({ port })
 
-// Almacenar documentos por sala
-const docs = new Map()
+console.log(`🚀 Servidor WebSocket corriendo en puerto ${port}`)
 
-wss.on('connection', (ws, req) => {
-  console.log(`Cliente conectado desde: ${req.socket.remoteAddress}`)
+wss.on('connection', (ws) => {
+  console.log('✅ Cliente conectado')
   
-  // Crear un documento para esta conexión
-  let doc = null
-  let awareness = null
+  // Enviar mensaje de bienvenida (opcional)
+  ws.send(JSON.stringify({ type: 'welcome', message: 'Conectado al servidor' }))
   
   ws.on('message', (data) => {
-    try {
-      // Reenviar el mensaje a todos los clientes excepto al remitente
-      wss.clients.forEach((client) => {
-        if (client !== ws && client.readyState === WebSocket.OPEN) {
-          client.send(data)
-        }
-      })
-    } catch (error) {
-      console.error('Error al procesar mensaje:', error)
-    }
+    console.log('📨 Mensaje recibido, reenviando a otros clientes...')
+    
+    // Reenviar el mensaje a todos los demás clientes
+    wss.clients.forEach((client) => {
+      if (client !== ws && client.readyState === WebSocket.OPEN) {
+        client.send(data)
+        console.log('✅ Mensaje reenviado')
+      }
+    })
   })
   
   ws.on('close', () => {
-    console.log('Cliente desconectado')
+    console.log('❌ Cliente desconectado')
   })
   
   ws.on('error', (error) => {
-    console.error('Error en WebSocket:', error)
+    console.error('Error en WebSocket:', error.message)
   })
 })
 
+// Manejar errores del servidor
 wss.on('error', (error) => {
-  console.error('Error en el servidor:', error)
+  console.error('Error del servidor:', error.message)
 })
-
-console.log(`Servidor WebSocket corriendo en ws://localhost:${port}`)
-console.log('Esperando conexiones...')
