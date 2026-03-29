@@ -1,15 +1,16 @@
-# fly.toml app configuration file generated for backend-winter-grass-6714 on 2026-03-29T00:11:23-05:00
-#
-# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
-#
-
+# fly.toml
 app = 'backend-winter-grass-6714'
 primary_region = 'iad'
 
 [build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "1234"
+  NODE_ENV = "production"
 
 [http_service]
-  internal_port = 3000
+  internal_port = 1234
   force_https = true
   auto_stop_machines = 'stop'
   auto_start_machines = true
