@@ -122,7 +122,7 @@ function App() {
       setProvider(null)
       providerRef.current = null
     }
-  }, [username, doc, color])
+  }, [username, doc])
 
   // Actualizar color en awareness cuando cambie
   useEffect(() => {
