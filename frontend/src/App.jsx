@@ -24,7 +24,7 @@ function App() {
   const isDrawingRef = useRef(false)
   const providerRef = useRef(null)
 
-  // Obtener strokes del documento Yjs
+  // Get strokes from Yjs document
   const getStrokesFromDoc = (yStrokes) => {
     return yStrokes.toArray().map((yStroke) => {
       const points = yStroke.get('points').toArray()
@@ -38,25 +38,25 @@ function App() {
     })
   }
 
-  // Inicializar conexión y sincronización
+  // Initialize WebSocket connection and synchronization
   useEffect(() => {
     if (!username) return
 
-    // Crear provider WebSocket
+    // Create WebSocket provider
     const wsProvider = new WebsocketProvider(WS_URL, ROOM_NAME, doc)
     const yStrokes = doc.getArray('strokes')
 
-    // Función para actualizar strokes
+    // Function to update strokes
     const updateStrokes = () => {
       const newStrokes = getStrokesFromDoc(yStrokes)
       setStrokes(newStrokes)
 
-      // Si el currentLocalStroke ya aparece en los strokes sincronizados, limpiar
+      // If currentLocalStroke already appears in synced strokes, clean up
       if (currentLocalStroke) {
         const found = newStrokes.find((s) => s.id === currentLocalStroke.id)
         if (found) {
           setCurrentLocalStroke(null)
-          // También limpiar del awareness
+          // Also clear from awareness
           const currentState = wsProvider.awareness.getLocalState() || {}
           wsProvider.awareness.setLocalState({
             ...currentState,
@@ -65,7 +65,7 @@ function App() {
         }
       }
 
-      // Limpiar strokes remotos que ya llegaron a Yjs
+      // Clean up remote strokes that have already arrived at Yjs
       setRemoteCurrentStrokes((prev) => {
         const updated = { ...prev }
         Object.keys(updated).forEach((clientId) => {
@@ -78,7 +78,7 @@ function App() {
       })
     }
 
-    // Función para actualizar awareness (cursores y strokes en progreso)
+    // Function to update awareness (cursors and in-progress strokes)
     const updateAwareness = () => {
       const states = []
       const remoteStrokes = {}
@@ -87,7 +87,7 @@ function App() {
         if (state.user && state.cursor) {
           states.push({ clientId, ...state })
         }
-        // Recopilar strokes en progreso de otros usuarios
+        // Collect in-progress strokes from other users
         if (state.currentStroke && state.user.name !== username) {
           remoteStrokes[clientId] = state.currentStroke
         }
@@ -97,17 +97,17 @@ function App() {
       setRemoteCurrentStrokes(remoteStrokes)
     }
 
-    // Observar cambios en los strokes
+    // Watch for changes in strokes
     yStrokes.observe(updateStrokes)
     wsProvider.awareness.on('change', updateAwareness)
 
-    // Establecer estado local del usuario
+    // Set local user state
     wsProvider.awareness.setLocalState({
       user: { name: username, color },
       cursor: { x: 0, y: 0 }
     })
 
-    // Cargar strokes existentes
+    // Load existing strokes
     updateStrokes()
     updateAwareness()
     
@@ -124,7 +124,7 @@ function App() {
     }
   }, [username, doc])
 
-  // Actualizar color en awareness cuando cambie
+  // Update color in awareness when it changes
   useEffect(() => {
     if (provider && username) {
       const currentState = provider.awareness.getLocalState() || {}
@@ -135,7 +135,7 @@ function App() {
     }
   }, [color, provider, username])
 
-  // Manejar inicio del dibujo
+  // Handle start of drawing
   const startStroke = (event) => {
     if (!provider || !username) return
     
@@ -149,7 +149,7 @@ function App() {
 
     const yStrokes = doc.getArray('strokes')
     
-    // Crear nuevo stroke en Yjs
+    // Create new stroke in Yjs
     const stroke = new Y.Map()
     stroke.set('id', `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)
     stroke.set('color', color)
@@ -163,7 +163,7 @@ function App() {
     yStrokes.push([stroke])
     currentStrokeRef.current = stroke
 
-    // Crear stroke visible localmente (sin retraso)
+    // Create locally visible stroke (no delay)
     const localStroke = {
       id: stroke.get('id'),
       points: [[point.x, point.y]],
@@ -173,18 +173,18 @@ function App() {
     }
     setCurrentLocalStroke(localStroke)
 
-    // Transmitir stroke en progreso a través de awareness
+    // Transmit in-progress stroke through awareness
     const currentState = provider.awareness.getLocalState() || {}
     provider.awareness.setLocalState({
       ...currentState,
       currentStroke: localStroke
     })
 
-    // Actualizar cursor
+    // Update cursor
     provider.awareness.setLocalStateField('cursor', { x: point.x, y: point.y })
   }
 
-  // Manejar movimiento del mouse siempre
+  // Handle mouse movement always
   const handleMouseMove = (event) => {
     if (!provider || !username) return
 
@@ -194,15 +194,15 @@ function App() {
     const point = stage.getPointerPosition()
     if (!point) return
 
-    // Actualizar cursor en awareness
+    // Update cursor in awareness
     provider.awareness.setLocalStateField('cursor', { x: point.x, y: point.y })
 
-    // Si estamos dibujando, agregar punto al stroke
+    // If we're drawing, add point to stroke
     if (isDrawingRef.current && currentStrokeRef.current) {
       const points = currentStrokeRef.current.get('points')
       points.push([point.x, point.y])
 
-      // Actualizar stroke local también (para ver sin retraso)
+      // Update local stroke too (to see without delay)
       const updatedStroke = {
         id: currentStrokeRef.current.get('id'),
         points: points.toArray(),
@@ -212,20 +212,20 @@ function App() {
       }
       setCurrentLocalStroke(updatedStroke)
 
-      // Transmitir stroke en progreso a través de awareness (tiempo real)
+      // Transmit in-progress stroke through awareness (real-time)
       const currentState = provider.awareness.getLocalState() || {}
       provider.awareness.setLocalStateField('currentStroke', updatedStroke)
     }
   }
 
-  // Manejar fin del dibujo
+  // Handle end of drawing
   const endStroke = () => {
     isDrawingRef.current = false
     currentStrokeRef.current = null
-    // currentStroke se limpiará automáticamente en syncStrokes cuando esté sincronizado
+    // currentStroke will be automatically cleared in updateStrokes when synced
   }
 
-  // Manejar envío de nombre
+  // Handle name submission
   const onSubmitName = (event) => {
     event.preventDefault()
     const trimmedName = nameInput.trim()
@@ -234,7 +234,7 @@ function App() {
     }
   }
 
-  // Manejar resize del board
+  // Handle board resize
   useEffect(() => {
     const handleResize = () => {
       if (boardRef.current) {

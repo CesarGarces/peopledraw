@@ -3,7 +3,7 @@ import { WebSocketServer } from 'ws'
 const port = process.env.PORT || 1234
 const wss = new WebSocketServer({ port })
 
-// Almacenar clientes
+// set clients
 const clients = new Set()
 
 wss.on('connection', (ws) => {
@@ -11,7 +11,7 @@ wss.on('connection', (ws) => {
   console.log(`✅ Cliente conectado. Total: ${clients.size}`)
   
   ws.on('message', (data) => {
-    // Enviar a todos los demás clientes
+    // send to all clients except sender
     clients.forEach((client) => {
       if (client !== ws && client.readyState === 1) {
         client.send(data)
