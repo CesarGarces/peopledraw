@@ -13,7 +13,7 @@ function App() {
   const [nameInput, setNameInput] = useState('')
   const [color, setColor] = useState('#2d8cf0')
   const [doc] = useState(() => new Y.Doc())
-  const [provider, setProvider] = useState(null)
+  const [provider, setProvider] = useState(null) 
   const [strokes, setStrokes] = useState([])
   const [cursors, setCursors] = useState([])
   const [boardSize, setBoardSize] = useState({ width: 800, height: 600 })
@@ -132,23 +132,23 @@ function App() {
     provider.awareness.setLocalStateField('cursor', { x: point.x, y: point.y })
   }
 
-  // Manejar dibujo continuo
-  const continueStroke = (event) => {
-    if (!isDrawingRef.current || !currentStrokeRef.current) return
-    
+  // Manejar movimiento del mouse siempre
+  const handleMouseMove = (event) => {
+    if (!provider || !username) return
+
     const stage = event.target.getStage()
     if (!stage) return
-    
+
     const point = stage.getPointerPosition()
     if (!point) return
 
-    // Agregar punto al stroke actual
-    const points = currentStrokeRef.current.get('points')
-    points.push([point.x, point.y])
+    // Actualizar cursor en awareness
+    provider.awareness.setLocalStateField('cursor', { x: point.x, y: point.y })
 
-    // Actualizar cursor
-    if (provider) {
-      provider.awareness.setLocalStateField('cursor', { x: point.x, y: point.y })
+    // Si estamos dibujando, agregar punto al stroke
+    if (isDrawingRef.current && currentStrokeRef.current) {
+      const points = currentStrokeRef.current.get('points')
+      points.push([point.x, point.y])
     }
   }
 
@@ -261,8 +261,8 @@ function App() {
             height={boardSize.height}
             onMouseDown={startStroke}
             onTouchStart={startStroke}
-            onMouseMove={continueStroke}
-            onTouchMove={continueStroke}
+            onMouseMove={handleMouseMove}
+            onTouchMove={handleMouseMove}
             onMouseUp={endStroke}
             onTouchEnd={endStroke}
             onMouseLeave={endStroke}
