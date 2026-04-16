@@ -116,6 +116,13 @@ function App() {
 
     // Cleanup
     return () => {
+      // Clear user state from awareness before disconnecting
+      try {
+        wsProvider.awareness.setLocalState(null)
+      } catch (e) {
+        // Ignore errors during cleanup
+      }
+      
       yStrokes.unobserve(updateStrokes)
       wsProvider.awareness.off('change', updateAwareness)
       wsProvider.destroy()
@@ -249,6 +256,23 @@ function App() {
     handleResize()
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  // Handle page unload to properly disconnect user
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      // Clear user state when closing browser/tab
+      if (providerRef.current) {
+        try {
+          providerRef.current.awareness.setLocalState(null)
+        } catch (e) {
+          // Ignore errors
+        }
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [])
 
   return (
