@@ -17,6 +17,7 @@ function App() {
   const [strokes, setStrokes] = useState([])
   const [cursors, setCursors] = useState([])
   const [boardSize, setBoardSize] = useState({ width: 800, height: 600 })
+  const [currentLocalStroke, setCurrentLocalStroke] = useState(null)
   const boardRef = useRef(null)
   const currentStrokeRef = useRef(null)
   const isDrawingRef = useRef(false)
@@ -37,7 +38,16 @@ function App() {
 
   // Sincronizar strokes con el estado local
   const syncStrokes = (yStrokes) => {
-    setStrokes(getStrokesFromDoc(yStrokes))
+    const newStrokes = getStrokesFromDoc(yStrokes)
+    setStrokes(newStrokes)
+
+    // Si el currentLocalStroke ya aparece en los strokes sincronizados, limpiar
+    if (currentLocalStroke) {
+      const found = newStrokes.find((s) => s.id === currentLocalStroke.id)
+      if (found) {
+        setCurrentLocalStroke(null)
+      }
+    }
   }
 
   // Inicializar conexión y sincronización
@@ -114,7 +124,7 @@ function App() {
 
     const yStrokes = doc.getArray('strokes')
     
-    // Crear nuevo stroke
+    // Crear nuevo stroke en Yjs
     const stroke = new Y.Map()
     stroke.set('id', `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)
     stroke.set('color', color)
@@ -127,6 +137,15 @@ function App() {
     
     yStrokes.push([stroke])
     currentStrokeRef.current = stroke
+
+    // Crear stroke visible localmente (sin retraso)
+    setCurrentLocalStroke({
+      id: stroke.get('id'),
+      points: [[point.x, point.y]],
+      color: color,
+      width: 5,
+      user: username,
+    })
 
     // Actualizar cursor
     provider.awareness.setLocalStateField('cursor', { x: point.x, y: point.y })
@@ -149,6 +168,15 @@ function App() {
     if (isDrawingRef.current && currentStrokeRef.current) {
       const points = currentStrokeRef.current.get('points')
       points.push([point.x, point.y])
+
+      // Actualizar stroke local también (para ver sin retraso)
+      setCurrentLocalStroke((prev) => {
+        if (!prev) return null
+        return {
+          ...prev,
+          points: [...prev.points, [point.x, point.y]],
+        }
+      })
     }
   }
 
@@ -156,6 +184,7 @@ function App() {
   const endStroke = () => {
     isDrawingRef.current = false
     currentStrokeRef.current = null
+    // No limpiar currentLocalStroke aquí, esperar a que se sincronice por Yjs
   }
 
   // Manejar envío de nombre
@@ -286,6 +315,16 @@ function App() {
                   lineJoin="round"
                 />
               ))}
+              {currentLocalStroke && (
+                <Line
+                  points={currentLocalStroke.points.flat()}
+                  stroke={currentLocalStroke.color}
+                  strokeWidth={currentLocalStroke.width}
+                  tension={0.5}
+                  lineCap="round"
+                  lineJoin="round"
+                />
+              )}
               {cursors
                 .filter((cursor) => cursor.user.name !== username)
                 .map((cursor) => (
