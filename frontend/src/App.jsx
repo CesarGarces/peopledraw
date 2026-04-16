@@ -16,6 +16,7 @@ function App() {
   const [provider, setProvider] = useState(null) 
   const [strokes, setStrokes] = useState([])
   const [cursors, setCursors] = useState([])
+  const [remoteCurrentStrokes, setRemoteCurrentStrokes] = useState({})
   const [boardSize, setBoardSize] = useState({ width: 800, height: 600 })
   const [currentLocalStroke, setCurrentLocalStroke] = useState(null)
   const boardRef = useRef(null)
@@ -63,15 +64,23 @@ function App() {
       setStrokes(getStrokesFromDoc(yStrokes))
     }
 
-    // Función para actualizar awareness (cursores)
+    // Función para actualizar awareness (cursores y strokes en progreso)
     const updateAwareness = () => {
       const states = []
+      const remoteStrokes = {}
+      
       wsProvider.awareness.getStates().forEach((state, clientId) => {
         if (state.user && state.cursor) {
           states.push({ clientId, ...state })
         }
+        // Recopilar strokes en progreso de otros usuarios
+        if (state.currentStroke && state.user.name !== username) {
+          remoteStrokes[clientId] = state.currentStroke
+        }
       })
+      
       setCursors(states)
+      setRemoteCurrentStrokes(remoteStrokes)
     }
 
     // Observar cambios en los strokes
@@ -139,12 +148,20 @@ function App() {
     currentStrokeRef.current = stroke
 
     // Crear stroke visible localmente (sin retraso)
-    setCurrentLocalStroke({
+    const localStroke = {
       id: stroke.get('id'),
       points: [[point.x, point.y]],
       color: color,
       width: 5,
       user: username,
+    }
+    setCurrentLocalStroke(localStroke)
+
+    // Transmitir stroke en progreso a través de awareness
+    const currentState = provider.awareness.getLocalState() || {}
+    provider.awareness.setLocalState({
+      ...currentState,
+      currentStroke: localStroke
     })
 
     // Actualizar cursor
@@ -170,13 +187,18 @@ function App() {
       points.push([point.x, point.y])
 
       // Actualizar stroke local también (para ver sin retraso)
-      setCurrentLocalStroke((prev) => {
-        if (!prev) return null
-        return {
-          ...prev,
-          points: [...prev.points, [point.x, point.y]],
-        }
-      })
+      const updatedStroke = {
+        id: currentStrokeRef.current.get('id'),
+        points: points.toArray(),
+        color: currentStrokeRef.current.get('color'),
+        width: currentStrokeRef.current.get('width'),
+        user: currentStrokeRef.current.get('user'),
+      }
+      setCurrentLocalStroke(updatedStroke)
+
+      // Transmitir stroke en progreso a través de awareness (tiempo real)
+      const currentState = provider.awareness.getLocalState() || {}
+      provider.awareness.setLocalStateField('currentStroke', updatedStroke)
     }
   }
 
@@ -184,7 +206,14 @@ function App() {
   const endStroke = () => {
     isDrawingRef.current = false
     currentStrokeRef.current = null
-    // No limpiar currentLocalStroke aquí, esperar a que se sincronice por Yjs
+    // Limpiar el currentStroke de awareness
+    if (provider) {
+      const currentState = provider.awareness.getLocalState() || {}
+      provider.awareness.setLocalState({
+        ...currentState,
+        currentStroke: null
+      })
+    }
   }
 
   // Manejar envío de nombre
@@ -325,6 +354,17 @@ function App() {
                   lineJoin="round"
                 />
               )}
+              {Object.entries(remoteCurrentStrokes).map(([clientId, stroke]) => (
+                <Line
+                  key={`remote-${clientId}`}
+                  points={stroke.points.flat()}
+                  stroke={stroke.color}
+                  strokeWidth={stroke.width}
+                  tension={0.5}
+                  lineCap="round"
+                  lineJoin="round"
+                />
+              ))}
               {cursors
                 .filter((cursor) => cursor.user.name !== username)
                 .map((cursor) => (
