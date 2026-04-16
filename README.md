@@ -15,7 +15,7 @@ Proyecto separado en dos carpetas:
 ## Despliegue
 
 - Frontend: Vercel
-- Backend WebSocket: Fly.io
+- Backend WebSocket: render.com
 
 ## Configuración
 
