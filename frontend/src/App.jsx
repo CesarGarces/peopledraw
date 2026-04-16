@@ -22,6 +22,7 @@ function App() {
   const boardRef = useRef(null)
   const currentStrokeRef = useRef(null)
   const isDrawingRef = useRef(false)
+  const providerRef = useRef(null)
 
   // Obtener strokes del documento Yjs
   const getStrokesFromDoc = (yStrokes) => {
@@ -37,20 +38,6 @@ function App() {
     })
   }
 
-  // Sincronizar strokes con el estado local
-  const syncStrokes = (yStrokes) => {
-    const newStrokes = getStrokesFromDoc(yStrokes)
-    setStrokes(newStrokes)
-
-    // Si el currentLocalStroke ya aparece en los strokes sincronizados, limpiar
-    if (currentLocalStroke) {
-      const found = newStrokes.find((s) => s.id === currentLocalStroke.id)
-      if (found) {
-        setCurrentLocalStroke(null)
-      }
-    }
-  }
-
   // Inicializar conexión y sincronización
   useEffect(() => {
     if (!username) return
@@ -61,7 +48,34 @@ function App() {
 
     // Función para actualizar strokes
     const updateStrokes = () => {
-      setStrokes(getStrokesFromDoc(yStrokes))
+      const newStrokes = getStrokesFromDoc(yStrokes)
+      setStrokes(newStrokes)
+
+      // Si el currentLocalStroke ya aparece en los strokes sincronizados, limpiar
+      if (currentLocalStroke) {
+        const found = newStrokes.find((s) => s.id === currentLocalStroke.id)
+        if (found) {
+          setCurrentLocalStroke(null)
+          // También limpiar del awareness
+          const currentState = wsProvider.awareness.getLocalState() || {}
+          wsProvider.awareness.setLocalState({
+            ...currentState,
+            currentStroke: null
+          })
+        }
+      }
+
+      // Limpiar strokes remotos que ya llegaron a Yjs
+      setRemoteCurrentStrokes((prev) => {
+        const updated = { ...prev }
+        Object.keys(updated).forEach((clientId) => {
+          const strokeId = updated[clientId].id
+          if (newStrokes.find((s) => s.id === strokeId)) {
+            delete updated[clientId]
+          }
+        })
+        return Object.keys(updated).length === Object.keys(prev).length ? prev : updated
+      })
     }
 
     // Función para actualizar awareness (cursores y strokes en progreso)
@@ -98,6 +112,7 @@ function App() {
     updateAwareness()
     
     setProvider(wsProvider)
+    providerRef.current = wsProvider
 
     // Cleanup
     return () => {
@@ -105,8 +120,9 @@ function App() {
       wsProvider.awareness.off('change', updateAwareness)
       wsProvider.destroy()
       setProvider(null)
+      providerRef.current = null
     }
-  }, [username, doc, color]) // Añadimos color como dependencia
+  }, [username, doc, color])
 
   // Actualizar color en awareness cuando cambie
   useEffect(() => {
@@ -206,14 +222,7 @@ function App() {
   const endStroke = () => {
     isDrawingRef.current = false
     currentStrokeRef.current = null
-    // Limpiar el currentStroke de awareness
-    if (provider) {
-      const currentState = provider.awareness.getLocalState() || {}
-      provider.awareness.setLocalState({
-        ...currentState,
-        currentStroke: null
-      })
-    }
+    // currentStroke se limpiará automáticamente en syncStrokes cuando esté sincronizado
   }
 
   // Manejar envío de nombre
