@@ -7,7 +7,7 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/ws': {
-        target: 'wss://backend-winter-grass-6714.fly.dev',
+        target: 'wss://peopledraw.onrender.com',
         ws: true
       }
     }
