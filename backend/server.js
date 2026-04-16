@@ -1,6 +1,6 @@
 import { WebSocketServer } from 'ws'
 
-const port = process.env.PORT || 1234
+const port = process.env.PORT || 10000
 const wss = new WebSocketServer({ port })
 
 // set clients
